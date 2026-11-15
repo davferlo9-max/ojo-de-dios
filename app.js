@@ -1,6 +1,7 @@
 // Abierto como archivo local (origen "null"): el navegador bloquea los workers de módulo que usa Cesium.
 // Se redirigen al bundle clásico que Cesium incluye (CESIUM_WORKERS).
-if (location.origin === 'null' && typeof CESIUM_WORKERS !== 'undefined') {
+window.__workerFail = 0;
+if ((location.protocol === 'file:' || location.origin === 'null') && typeof CESIUM_WORKERS !== 'undefined') {
   const NativeWorker = Worker, NativeBlob = Blob, src = new Map(), mk = URL.createObjectURL.bind(URL);
   let bundle;
   window.Blob = class extends NativeBlob { constructor(p, o) { super(p, o); if (p && p.length === 1 && typeof p[0] === 'string') this._s = p[0]; } };
@@ -9,7 +10,9 @@ if (location.origin === 'null' && typeof CESIUM_WORKERS !== 'undefined') {
     const m = opts && opts.type === 'module' && /^import "(?:.*\/)?([\w-]+?)(?:\.js)?";$/.exec(src.get(String(url)) || '');
     if (!m) return new NativeWorker(url, opts);
     bundle = bundle || mk(new NativeBlob([CESIUM_WORKERS], { type: 'text/javascript' }));
-    return new NativeWorker(mk(new NativeBlob([`importScripts("${bundle}");CesiumWorkers["${m[1]}"]();`], { type: 'text/javascript' })));
+    const w = new NativeWorker(mk(new NativeBlob([`importScripts("${bundle}");CesiumWorkers["${m[1]}"]();`], { type: 'text/javascript' })));
+    w.addEventListener('error', () => window.__workerFail++);
+    return w;
   };
 }
 (() => {
@@ -243,4 +246,6 @@ function frame(t) {
 }
 log('Ojo de Dios en línea. Sincronizando fuentes...');
 loadFlights(); loadISS(); loadQuakes(); requestAnimationFrame(frame);
+setTimeout(() => { const s = globe._surface, n = s && s._tilesToRender ? s._tilesToRender.length : -1;
+  if (n === 0 || window.__workerFail) log(`[FALLO] El globo no se generó (${location.protocol}, workers con error: ${window.__workerFail}). Abra la app con "node server.js" o desde GitHub Pages.`, true); }, 12000);
 })();
