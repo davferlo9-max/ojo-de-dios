@@ -6,7 +6,33 @@ const get = async (u, type = 'json') => { const r = await fetch(u, { headers: UA
 const r5 = x => Math.round(+x*1e5)/1e5;
 const tag = (xml, t) => (new RegExp(`<${t}>([^<]*)</${t}>`).exec(xml) || [])[1];
 
+// UTM (ETRS89) -> lat/lon WGS84, suficiente para posicionar cámaras
+function utm2ll(E, N, zone = 30) {
+  const a = 6378137, f = 1/298.257222101, e2 = f*(2 - f), k0 = .9996, ep2 = e2/(1 - e2), x = E - 500000, M = N/k0;
+  const mu = M/(a*(1 - e2/4 - 3*e2**2/64 - 5*e2**3/256)), e1 = (1 - Math.sqrt(1 - e2))/(1 + Math.sqrt(1 - e2));
+  const p = mu + (3*e1/2 - 27*e1**3/32)*Math.sin(2*mu) + (21*e1**2/16 - 55*e1**4/32)*Math.sin(4*mu) + (151*e1**3/96)*Math.sin(6*mu);
+  const C = ep2*Math.cos(p)**2, T = Math.tan(p)**2, Nn = a/Math.sqrt(1 - e2*Math.sin(p)**2), R = a*(1 - e2)/(1 - e2*Math.sin(p)**2)**1.5, D = x/(Nn*k0);
+  const lat = p - (Nn*Math.tan(p)/R)*(D**2/2 - (5 + 3*T + 10*C - 4*C**2 - 9*ep2)*D**4/24 + (61 + 90*T + 298*C + 45*T**2 - 252*ep2 - 3*C**2)*D**6/720);
+  const lon = (D - (1 + 2*T + C)*D**3/6 + (5 - 2*C + 28*T - 3*C**2 + 8*ep2 + 24*T**2)*D**5/120)/Math.cos(p);
+  return [lat*180/Math.PI, (zone*6 - 183) + lon*180/Math.PI];
+}
+const decode = s => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&quot;/g, '"');
+
 const SOURCES = {
+  'España · DGT': async () => (await get('https://nap.dgt.es/datex2/v3/dgt/DevicePublication/camaras_datex2_v36.xml', 'text')).split('<ns2:device ').slice(1).map(x => {
+    const u = tag(x, 'fse:deviceUrl'), la = tag(x, 'loc:latitude'), lo = tag(x, 'loc:longitude');
+    const name = [tag(x, 'loc:roadName'), tag(x, 'lse:kilometerPoint') && `km ${tag(x, 'lse:kilometerPoint')}`, tag(x, 'loc:roadDestination') && `→ ${tag(x, 'loc:roadDestination')}`, tag(x, 'lse:province') && `(${tag(x, 'lse:province')})`].filter(Boolean).join(' ');
+    return u && la && lo && [name || 'Cámara DGT', la, lo, u]; }),
+  'Madrid · Ayuntamiento': async () => (await get('https://datos.madrid.es/egob/catalogo/202088-0-trafico-camaras.kml', 'text')).split('<Placemark>').slice(1).map(x => {
+    const img = (/img src=([^\s>]+)/.exec(decode(x)) || [])[1], c = (tag(x, 'coordinates') || '').trim().split(',');
+    return img && c.length > 1 && [`MADRID · ${(/<Data name="Nombre">\s*<Value>([^<]*)/.exec(x) || [])[1] || 'Cámara'}`, c[1], c[0], img.replace(/\?.*$/, '')]; }),
+  'Euskadi · Tráfico': async () => { const out = [];
+    for (let p = 1, n = 1; p <= n; p++) { const j = await get(`https://api.euskadi.eus/traffic/v1.0/cameras?_page=${p}`); n = j.totalPages;
+      for (const c of j.cameras) if (c.urlImage) { const [la, lo] = utm2ll(+c.longitude, +c.latitude); out.push([`${c.cameraName}${c.road ? ' · ' + c.road : ''}`, la, lo, c.urlImage.replace(/^https?:\/\/www\.bizkaimove\.com/, 'https://www.bizkaimove.eus')]); } }
+    return out; },
+  'Cataluña · SCT': async () => (await get('https://www.gencat.cat/transit/opendata/cameres.xml', 'text')).split('<gml:featureMember>').slice(1).map(x => {
+    const c = (/<gml:coordinates[^>]*>([^<]+)/.exec(x) || [])[1], u = tag(x, 'cite:link'); if (!c || !u) return null; const [lo, la] = c.split(',');
+    return [`${tag(x, 'cite:carretera')} · ${tag(x, 'cite:municipi')} km ${tag(x, 'cite:pk')}`, la, lo, decode(u).replace(/^http:/, 'https:')]; }),
   'Londres · TfL JamCams': async () => (await get('https://api.tfl.gov.uk/Place/Type/JamCam')).map(c => {
     const p = Object.fromEntries(c.additionalProperties.map(a => [a.key, a.value]));
     return p.available === 'true' && [c.commonName, c.lat, c.lon, p.imageUrl]; }),

@@ -60,7 +60,7 @@ const SRC = (window.CAM_SOURCES || []).slice(), cams = [];
 (window.CAMS || []).forEach(([s, n, la, lo, u]) => cams.push({ s, n, la, lo, u }));
 const SG = SRC.push('Singapur · LTA') - 1, sgIndex = new Map();
 let camsOn = true, camFeedsT = 0, sgOk = false;
-const camStyle = { renderer: rCams, radius: 3.5, color: '#062', weight: 1, fillColor: '#4dff88', fillOpacity: .9 };
+const camStyle = { renderer: rCams, radius: 3.5, color: '#062', weight: 1, fillColor: '#4dff88', fillOpacity: .9, bubblingMouseEvents: false };
 const camLayer = L.layerGroup().addTo(map);
 const addCam = c => { c.m = L.circleMarker([c.la, c.lo], camStyle).bindTooltip(() => `CÁMARA · ${c.n}<br>${SRC[c.s]}`, { direction: 'top', offset: [0, -4] })
   .on('click', () => openCam(c)).addTo(camLayer); };
@@ -78,7 +78,7 @@ const camImg = c => c.fixed ? c.u : bust(c.u);
 const camVideo = c => /jamcams\.tfl\.gov\.uk\/.*\.jpg$/.test(c.u) ? c.u.replace(/\.jpg$/, '.mp4') : null;
 let cvTimer = null, cvCam = null;
 function openCam(c) {
-  cvCam = c; clearInterval(cvTimer); $('camview').hidden = false; $('cv-title').innerHTML = '<i class="dot" style="color:#ff3b3b"></i>'; $('cv-title').append(c.n);
+  cvCam = c; clearInterval(cvTimer); $('camview').hidden = false; $('camview').classList.remove('street'); $('cv-title').innerHTML = '<i class="dot" style="color:#ff3b3b"></i>'; $('cv-title').append(c.n);
   $('cv-foot').textContent = `${SRC[c.s]} · ${c.la.toFixed(5)}, ${c.lo.toFixed(5)} · cerca de ${nearest(c.la, c.lo).c.n}`;
   const body = $('cv-body'), vid = camVideo(c); body.innerHTML = '';
   if (vid) { const v = Object.assign(document.createElement('video'), { src: vid, autoplay: true, muted: true, loop: true, playsInline: true, controls: true });
@@ -89,7 +89,25 @@ function openCam(c) {
   if (map.getZoom() < 14) map.flyTo([c.la, c.lo], 15, { duration: 1.5 });
   log(`Accediendo a cámara: ${c.n} (${SRC[c.s]})`);
 }
-$('cv-close').onclick = () => { $('camview').hidden = true; clearInterval(cvTimer); $('cv-body').innerHTML = ''; cvCam = null; };
+$('cv-close').onclick = () => { $('camview').hidden = true; $('camview').classList.remove('street'); clearInterval(cvTimer); $('cv-body').innerHTML = ''; cvCam = null; };
+$('cv-street').onclick = () => { if (cvCam) openStreet(cvCam.la, cvCam.lo, cvCam.n); };
+
+// ---------- Vista a pie de calle (Google Street View)
+let streetMode = false;
+const svLink = (la, lo) => `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${la},${lo}`;
+function openStreet(la, lo, title) {
+  clearInterval(cvTimer); cvCam = null; $('camview').hidden = false; $('camview').classList.add('street');
+  $('cv-title').textContent = `VISTA CALLE · ${title || `${la.toFixed(5)}, ${lo.toFixed(5)}`}`;
+  const f = document.createElement('iframe'); f.allowFullscreen = true; f.referrerPolicy = 'no-referrer-when-downgrade';
+  f.src = `https://www.google.com/maps?layer=c&cbll=${la},${lo}&cbp=12,0,0,0,0&output=svembed`;
+  $('cv-body').innerHTML = ''; $('cv-body').append(f);
+  $('cv-foot').innerHTML = `<span>Arrastre para girar · rueda para acercar · flechas del suelo para avanzar. Si sale gris, no hay imágenes en ese punto: pruebe sobre una calle.</span><a target="_blank" rel="noopener" href="${svLink(la, lo)}">ABRIR EN GOOGLE MAPS</a>`;
+  log(`Vista calle: ${la.toFixed(5)}, ${lo.toFixed(5)}`);
+}
+$('streetBtn').onclick = () => { streetMode = !streetMode; $('streetBtn').classList.toggle('on', streetMode); document.body.classList.toggle('street-mode', streetMode);
+  log(streetMode ? 'VISTA CALLE activa: haga clic en cualquier calle del mapa.' : 'Vista calle desactivada.'); };
+map.on('click', e => { if (streetMode) openStreet(e.latlng.lat, wrap(e.latlng.lng)); });
+map.on('contextmenu', e => openStreet(e.latlng.lat, wrap(e.latlng.lng)));
 function updateFeeds() {
   const ctr = map.getCenter(), la = ctr.lat, lo = wrap(ctr.lng), best = [];
   for (const c of cams) { const d = (c.la - la)**2 + (wrap(c.lo - lo)*Math.cos(la*D2R))**2;
@@ -135,7 +153,7 @@ function drift(o, now) { const d = o.gs*Math.min(300, (now - o.t)/1000); if (d <
 function updateAc() {
   const now = Date.now();
   for (const o of ac.values()) { drift(o, now); const show = !milOnly || o.mil;
-    if (!o.m) { o.m = L.circleMarker([o.cl, o.co], { renderer: rAc, radius: o.mil ? 4 : 3, weight: 1, color: '#000', fillColor: colorOf(o), fillOpacity: 1 })
+    if (!o.m) { o.m = L.circleMarker([o.cl, o.co], { renderer: rAc, radius: o.mil ? 4 : 3, weight: 1, color: '#000', fillColor: colorOf(o), fillOpacity: 1, bubblingMouseEvents: false })
       .bindTooltip(acTip(o), { direction: 'top', offset: [0, -4] }).on('click', () => lock(o)); }
     else o.m.setLatLng([o.cl, o.co]);
     if (show && !acLayer.hasLayer(o.m)) acLayer.addLayer(o.m); else if (!show && acLayer.hasLayer(o.m)) acLayer.removeLayer(o.m); }
@@ -233,6 +251,6 @@ setInterval(() => {
 }, 1000);
 
 log(`Ojo de Dios en línea. ${cams.length.toLocaleString()} cámaras públicas indexadas.`);
-log('Clic en un punto verde para ver su cámara en vivo.');
+log('Clic en un punto verde para ver su cámara en vivo. Clic derecho en una calle: vista a pie de calle.');
 loadFlights(); loadISS(); loadQuakes(); loadSG(); updateAc(); updateFeeds();
 })();
