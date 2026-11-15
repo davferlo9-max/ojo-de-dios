@@ -60,6 +60,12 @@ const SOURCES = {
       rows.forEach(([n, la, lo, u, v]) => cams.push(v ? [i, String(n).trim().slice(0, 80), r5(la), r5(lo), u, v] : [i, String(n).trim().slice(0, 80), r5(la), r5(lo), u])); console.log(`${name}: ${rows.length}`); }
     catch (e) { console.warn(`${name}: ERROR ${e.message}`); }
   }
+  // Solo se marca como "directo" si el stream responde ahora mismo
+  const vids = cams.filter(c => c[5] && /\.m3u8/.test(c[5])); let ok = 0, i = 0;
+  await Promise.all(Array.from({ length: 24 }, async () => { for (let c; (c = vids[i++]);) {
+    try { const r = await fetch(c[5], { headers: UA, signal: AbortSignal.timeout(8000) }); if (r.ok && (await r.text()).startsWith('#EXTM3U')) { ok++; continue; } } catch {}
+    c.length = 5; } }));
+  console.log(`Streams HLS activos: ${ok}/${vids.length}`);
   const out = `// Generado ${new Date().toISOString()} por tools/build-cameras.js. [fuente, nombre, lat, lon, imagen, vídeo?]\nwindow.CAM_SOURCES=${JSON.stringify(src)};\nwindow.CAMS=${JSON.stringify(cams)};\n`;
   fs.writeFileSync(path.join(__dirname, '..', 'cameras.js'), out); console.log(`TOTAL ${cams.length} → cameras.js (${(out.length/1024)|0} KB)`);
 })();
