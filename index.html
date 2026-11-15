@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>OJO DE DIOS</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.124.0/Build/Cesium/Widgets/widgets.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,8 +12,8 @@
 <canvas id="overlay"></canvas>
 <div id="hud">
   <header>
-    <div class="brand">◉ OJO DE DIOS <small>v8.0 · VIGILANCIA GLOBAL EN TIEMPO REAL</small></div>
-    <form id="search"><input id="q" placeholder="BUSCAR: indicativo, matrícula, hex, ciudad, ISS, MIL" autocomplete="off"><button>RASTREAR</button></form>
+    <div class="brand">◉ OJO DE DIOS <small>v9.0 · OBSERVACIÓN GLOBAL EN TIEMPO REAL</small></div>
+    <form id="search"><input id="q" placeholder="BUSCAR CUALQUIER LUGAR DEL MUNDO, vuelo, matrícula, ISS, MIL" autocomplete="off"><button>RASTREAR</button></form>
     <div id="clock"></div>
   </header>
   <aside id="left">
@@ -33,11 +34,10 @@ Clic en un punto o use el buscador.</pre>
   <footer>
     <span id="coords">LAT --- LON ---</span>
     <span id="stats"></span>
-    <span><button id="mil">SOLO MILITARES</button> <button id="release">LIBERAR</button></span>
+    <span><button id="layer">CAPA: SATÉLITE</button> <button id="mil">SOLO MILITARES</button> <button id="release">LIBERAR</button></span>
   </footer>
 </div>
-<script src="three.min.js"></script>
-<script src="world.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cesium@1.124.0/Build/Cesium/Cesium.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

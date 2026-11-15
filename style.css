@@ -2,8 +2,11 @@
 *{box-sizing:border-box;margin:0}
 body{background:var(--bg);color:var(--c);font:12px/1.4 "Courier New",monospace;overflow:hidden}
 #gl,#overlay{position:fixed;inset:0;width:100%;height:100%}
-#overlay{cursor:crosshair}
-#gl canvas{display:block}
+#overlay{pointer-events:none}
+#gl .cesium-viewer,#gl .cesium-widget,#gl canvas{width:100%;height:100%}
+.cesium-viewer-bottom{bottom:46px!important;left:260px;right:260px;opacity:.7;font-size:10px}
+.cesium-widget-credits{color:#19f3ff}
+#hud::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,#0000 55%,#000a 100%);pointer-events:none}
 #sources{font-size:11px;white-space:pre-wrap;margin-bottom:8px}
 .ok{color:#4dff88}.bad{color:#ffd23b}
 #hud{position:fixed;inset:0;pointer-events:none}
