@@ -40,7 +40,7 @@ const rNight = pane('night', 350), rCams = pane('cams', 420), rQuake = pane('qua
 map.createPane('track').style.zIndex = 450;
 
 // ---------- Terminador día/noche (posición real del Sol)
-const night = L.polygon([], { renderer: rNight, stroke: false, fillColor: '#000814', fillOpacity: .45, interactive: false }).addTo(map);
+const night = L.polygon([], { renderer: rNight, stroke: false, fillColor: '#000814', fillOpacity: .5, interactive: false }).addTo(map);
 function updateNight() {
   const d = new Date(), n = (d - Date.UTC(d.getUTCFullYear(), 0, 0))/864e5, B = 2*Math.PI*(n - 81)/364;
   const eot = 9.87*Math.sin(2*B) - 7.53*Math.cos(B) - 1.5*Math.sin(B), h = d.getUTCHours() + d.getUTCMinutes()/60 + d.getUTCSeconds()/3600;
@@ -78,7 +78,7 @@ const camImg = c => c.fixed ? c.u : bust(c.u);
 const camVideo = c => /jamcams\.tfl\.gov\.uk\/.*\.jpg$/.test(c.u) ? c.u.replace(/\.jpg$/, '.mp4') : null;
 let cvTimer = null, cvCam = null;
 function openCam(c) {
-  cvCam = c; clearInterval(cvTimer); $('camview').hidden = false; $('cv-title').textContent = `◉ ${c.n}`;
+  cvCam = c; clearInterval(cvTimer); $('camview').hidden = false; $('cv-title').innerHTML = '<i class="dot" style="color:#ff3b3b"></i>'; $('cv-title').append(c.n);
   $('cv-foot').textContent = `${SRC[c.s]} · ${c.la.toFixed(5)}, ${c.lo.toFixed(5)} · cerca de ${nearest(c.la, c.lo).c.n}`;
   const body = $('cv-body'), vid = camVideo(c); body.innerHTML = '';
   if (vid) { const v = Object.assign(document.createElement('video'), { src: vid, autoplay: true, muted: true, loop: true, playsInline: true, controls: true });
@@ -97,7 +97,7 @@ function updateFeeds() {
   const box = $('feeds'); box.innerHTML = '';
   if (!best.length) { box.textContent = 'Sin cámaras cargadas.'; return; }
   for (const { c, d } of best) { const el = document.createElement('div'); el.className = 'feed';
-    el.innerHTML = `<img alt=""><span class="rec">● EN VIVO</span><span class="lbl"></span>`;
+    el.innerHTML = `<img alt=""><span class="rec"><i class="dot"></i>EN VIVO</span><span class="lbl"></span>`;
     el.querySelector('img').src = camImg(c); el.querySelector('.lbl').textContent = `${c.n} · ${Math.round(Math.sqrt(d)*111)} km`;
     el.querySelector('img').onerror = function () { this.style.opacity = .15; };
     el.onclick = () => openCam(c); box.append(el); }
