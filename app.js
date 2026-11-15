@@ -6,7 +6,7 @@ if (location.origin === 'null' && typeof CESIUM_WORKERS !== 'undefined') {
   window.Blob = class extends NativeBlob { constructor(p, o) { super(p, o); if (p && p.length === 1 && typeof p[0] === 'string') this._s = p[0]; } };
   URL.createObjectURL = b => { const u = mk(b); if (b && b._s) src.set(u, b._s); return u; };
   window.Worker = function (url, opts) {
-    const m = opts && opts.type === 'module' && /Workers\/([\w-]+)\.js/.exec(src.get(String(url)) || '');
+    const m = opts && opts.type === 'module' && /^import "(?:.*\/)?([\w-]+?)(?:\.js)?";$/.exec(src.get(String(url)) || '');
     if (!m) return new NativeWorker(url, opts);
     bundle = bundle || mk(new NativeBlob([CESIUM_WORKERS], { type: 'text/javascript' }));
     return new NativeWorker(mk(new NativeBlob([`importScripts("${bundle}");CesiumWorkers["${m[1]}"]();`], { type: 'text/javascript' })));
