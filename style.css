@@ -31,3 +31,6 @@ h3{font-size:11px;letter-spacing:2px;margin:4px 0;border-bottom:1px solid #19f3f
 #log{height:calc(100% - 200px);overflow:hidden;font-size:11px;display:flex;flex-direction:column;justify-content:flex-end}
 #log div{opacity:.85}#log .alert{color:var(--r)}
 @media(max-width:900px){aside{display:none}}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:currentColor;margin-right:6px;box-shadow:0 0 6px currentColor}
+.eye{display:inline-block;width:14px;height:14px;border:2px solid var(--c);border-radius:50%;margin-right:10px;vertical-align:-1px;background:radial-gradient(var(--c) 30%,#0000 34%);box-shadow:0 0 8px var(--c)}
+.cesium-widget-credits{left:260px!important}

@@ -177,8 +177,9 @@ const aircraftFrom = p => p && p.id && p.id.hex ? p.id : p && p.id && p.id.id ==
 handler.setInputAction(m => { const o = aircraftFrom(scene.pick(m.position, 10, 10)); if (o) lock(o); }, C.ScreenSpaceEventType.LEFT_CLICK);
 handler.setInputAction(m => { mouse = m.endPosition;
   const t = performance.now(); if (t - lastPick > 90) { lastPick = t; hover = (locked ? null : aircraftFrom(scene.pick(mouse, 10, 10))); }
-  const p = camera.pickEllipsoid(mouse, globe.ellipsoid); if (p) { const g = globe.ellipsoid.cartesianToCartographic(p); $('coords').textContent = `LAT ${(g.latitude/D2R).toFixed(4)}°  LON ${(g.longitude/D2R).toFixed(4)}°  ALT. CÁMARA ${Math.round(camera.positionCartographic.height/1000).toLocaleString()} km`; }
+  const p = camera.pickEllipsoid(mouse, globe.ellipsoid); if (p) { const g = globe.ellipsoid.cartesianToCartographic(p); $('coords').textContent = `LAT ${(g.latitude/D2R).toFixed(4)}°  LON ${(g.longitude/D2R).toFixed(4)}°  ALT. CÁMARA ${fmtH(camera.positionCartographic.height)}`; }
 }, C.ScreenSpaceEventType.MOUSE_MOVE);
+const fmtH = h => h < 10000 ? `${Math.round(h)} m` : `${Math.round(h/1000).toLocaleString()} km`;
 const toWin = p => scene.cartesianToCanvasCoordinates ? scene.cartesianToCanvasCoordinates(p) : C.SceneTransforms.wgs84ToWindowCoordinates(scene, p);
 
 // ---------- Feeds de cámaras (demostración)
@@ -217,8 +218,8 @@ function frame(t) {
         ? `[ESTADO: BLOQUEADO · EN VIVO]\nOBJETO : ESTACIÓN ESPACIAL INT.\nNORAD  : 25544\nALTITUD: ${iss.s1.alt.toFixed(1)} km\nVELOC. : ${Math.round(iss.s1.vel).toLocaleString()} km/h\nPOS    : ${pos}\nVISIBIL: ${iss.s1.vis.toUpperCase()}\nCERCA  : ${ct.c.n} (${Math.round(ct.d/1000)} km)`
         : `[ESTADO: BLOQUEADO · ${o.sim ? 'SIMULADO' : 'EN VIVO'}]\nINDIC. : ${o.cs || '—'}\nHEX    : ${o.hex.toUpperCase()}\nMATRÍC.: ${o.reg || '—'}\nTIPO   : ${o.type || '—'}\nCLASE  : ${o.mil ? 'MILITAR' : 'CIVIL'}\nALTITUD: ${Math.round(o.alt)} m (${Math.round(o.alt*3.281)} ft)\nVELOC. : ${Math.round(o.gs*3.6)} km/h\nRUMBO  : ${Math.round(o.trk)}°\nPOS    : ${pos}\nCERCA  : ${ct.c.n} (${Math.round(ct.d/1000)} km)\nDATO   : hace ${((now - o.t)/1000)|0} s`; }
     $('stats').textContent = `AERONAVES ${nShown.toLocaleString()} · MIL ${nMil} · SISMOS ${quakes.size} · FPS ${fps|0}`;
-    $('clock').textContent = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC'; if (!mouse) $('coords').textContent = `ALT. CÁMARA ${Math.round(camera.positionCartographic.height/1000).toLocaleString()} km`; }
-  if (t - srcT > 1000) { srcT = t; const row = (n, ok, v) => `<span class="${ok ? 'ok' : 'bad'}">●</span> ${n}: ${v}`;
+    $('clock').textContent = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC'; if (!mouse) $('coords').textContent = `ALT. CÁMARA ${fmtH(camera.positionCartographic.height)}`; }
+  if (t - srcT > 1000) { srcT = t; const row = (n, ok, v) => `<i class="dot ${ok ? 'ok' : 'bad'}"></i>${n}: ${v}`;
     $('sources').innerHTML = [row('IMÁGENES', true, LAYERS[layerIdx].n === 'SATÉLITE' ? 'Esri World Imagery' : LAYERS[layerIdx].n),
       row('AERONAVES', flightSrc.ok, flightSrc.ok ? `EN VIVO · ${flightSrc.name} · ${Math.round((now - flightSrc.t)/1000)}s` : 'SIMULADO'),
       row('ISS', iss.ok, iss.ok ? 'EN VIVO · wheretheiss.at' : 'SIN SEÑAL'), row('SISMOS', quakesLoaded, quakesLoaded ? 'EN VIVO · USGS 24h' : 'SIN SEÑAL'),
