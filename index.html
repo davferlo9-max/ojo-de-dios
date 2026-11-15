@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OJO DE DIOS</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="gl"></div>
+<canvas id="overlay"></canvas>
+<div id="hud">
+  <header>
+    <div class="brand">◉ OJO DE DIOS <small>v8.0 · VIGILANCIA GLOBAL EN TIEMPO REAL</small></div>
+    <form id="search"><input id="q" placeholder="BUSCAR: indicativo, matrícula, hex, ciudad, ISS, MIL" autocomplete="off"><button>RASTREAR</button></form>
+    <div id="clock"></div>
+  </header>
+  <aside id="left">
+    <h3>ESTADO DE FUENTES</h3>
+    <pre id="sources"></pre>
+    <h3>FEEDS (DEMO)</h3>
+    <canvas class="feed" width="220" height="110"></canvas>
+    <canvas class="feed" width="220" height="110"></canvas>
+    <canvas class="feed" width="220" height="110"></canvas>
+  </aside>
+  <aside id="right">
+    <h3>OBJETIVO</h3>
+    <pre id="target">[SIN OBJETIVO]
+Clic en un punto o use el buscador.</pre>
+    <h3>REGISTRO</h3>
+    <div id="log"></div>
+  </aside>
+  <footer>
+    <span id="coords">LAT --- LON ---</span>
+    <span id="stats"></span>
+    <span><button id="mil">SOLO MILITARES</button> <button id="release">LIBERAR</button></span>
+  </footer>
+</div>
+<script src="three.min.js"></script>
+<script src="world.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
