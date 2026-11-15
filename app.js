@@ -1,3 +1,17 @@
+// Abierto como archivo local (origen "null"): el navegador bloquea los workers de módulo que usa Cesium.
+// Se redirigen al bundle clásico que Cesium incluye (CESIUM_WORKERS).
+if (location.origin === 'null' && typeof CESIUM_WORKERS !== 'undefined') {
+  const NativeWorker = Worker, NativeBlob = Blob, src = new Map(), mk = URL.createObjectURL.bind(URL);
+  let bundle;
+  window.Blob = class extends NativeBlob { constructor(p, o) { super(p, o); if (p && p.length === 1 && typeof p[0] === 'string') this._s = p[0]; } };
+  URL.createObjectURL = b => { const u = mk(b); if (b && b._s) src.set(u, b._s); return u; };
+  window.Worker = function (url, opts) {
+    const m = opts && opts.type === 'module' && /Workers\/([\w-]+)\.js/.exec(src.get(String(url)) || '');
+    if (!m) return new NativeWorker(url, opts);
+    bundle = bundle || mk(new NativeBlob([CESIUM_WORKERS], { type: 'text/javascript' }));
+    return new NativeWorker(mk(new NativeBlob([`importScripts("${bundle}");CesiumWorkers["${m[1]}"]();`], { type: 'text/javascript' })));
+  };
+}
 (() => {
 const $ = id => document.getElementById(id);
 const C = Cesium, D2R = Math.PI/180, ER = 6371000;
