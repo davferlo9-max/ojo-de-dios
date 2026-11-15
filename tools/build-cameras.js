@@ -35,7 +35,7 @@ const SOURCES = {
     return [`${tag(x, 'cite:carretera')} · ${tag(x, 'cite:municipi')} km ${tag(x, 'cite:pk')}`, la, lo, decode(u).replace(/^http:/, 'https:')]; }),
   'Londres · TfL JamCams': async () => (await get('https://api.tfl.gov.uk/Place/Type/JamCam')).map(c => {
     const p = Object.fromEntries(c.additionalProperties.map(a => [a.key, a.value]));
-    return p.available === 'true' && [c.commonName, c.lat, c.lon, p.imageUrl]; }),
+    return p.available === 'true' && [c.commonName, c.lat, c.lon, p.imageUrl, p.videoUrl || undefined]; }),
   'Nueva York · NYC DOT': async () => (await get('https://webcams.nyctmc.org/api/cameras')).map(c => c.isOnline === 'true' && [c.name, c.latitude, c.longitude, c.imageUrl]),
   'Finlandia · Digitraffic': async () => (await get('https://tie.digitraffic.fi/api/weathercam/v1/stations')).features.flatMap(f => {
     const ps = (f.properties.presets || []).filter(p => p.inCollection); const [lo, la] = f.geometry.coordinates;
@@ -43,7 +43,9 @@ const SOURCES = {
   'Washington · WSDOT': async () => (await get('https://data.wsdot.wa.gov/mobile/Cameras.json')).cameras.items.map(c => [c.title, c.lat, c.lon, c.url]),
   'California · Caltrans': async () => (await Promise.all(Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'))
     .map(d => get(`https://cwwp2.dot.ca.gov/data/d${+d}/cctv/cctvStatusD${d}.json`).catch(() => ({ data: [] })))))
-    .flatMap(j => j.data.map(({ cctv: c }) => c.inService === 'true' && c.imageData.static.currentImageURL && [c.location.locationName, c.location.latitude, c.location.longitude, c.imageData.static.currentImageURL])),
+    .flatMap(j => j.data.map(({ cctv: c }) => c.inService === 'true' && c.imageData.static.currentImageURL && [c.location.locationName, c.location.latitude, c.location.longitude, c.imageData.static.currentImageURL, c.imageData.streamingVideoURL || undefined])),
+  'Iowa · Iowa DOT': async () => (await get('https://services.arcgis.com/8lRhdTsQyJpO52F1/arcgis/rest/services/Traffic_Cameras_View/FeatureServer/0/query?where=1%3D1&outFields=Desc_,ImageURL,VideoURL&outSR=4326&f=json')).features
+    .map(({ attributes: a, geometry: g }) => g && a.ImageURL && [a.Desc_, g.y, g.x, a.ImageURL, a.VideoURL || undefined]),
   'Hong Kong · Transport Dept': async () => (await get('https://static.data.gov.hk/td/traffic-snapshot-images/code/Traffic_Camera_Locations_En.csv', 'buf'))
     .toString('utf16le').replace(/^\uFEFF/, '').split(/\r?\n/).slice(1).map(l => l.split('\t')).map(c => c.length > 8 && [c[3], c[6], c[7], c[8].trim()]),
   'Nueva Zelanda · NZTA': async () => (await get('https://trafficnz.info/service/traffic/rest/4/cameras/all', 'text')).split('<camera>').slice(1).map(x => {
@@ -55,9 +57,9 @@ const SOURCES = {
   const src = Object.keys(SOURCES), cams = [];
   for (const [i, name] of src.entries()) {
     try { const rows = (await SOURCES[name]()).filter(r => r && r[3] && isFinite(r[1]) && isFinite(r[2]) && Math.abs(r[1]) > .01);
-      rows.forEach(([n, la, lo, u]) => cams.push([i, String(n).trim().slice(0, 80), r5(la), r5(lo), u])); console.log(`${name}: ${rows.length}`); }
+      rows.forEach(([n, la, lo, u, v]) => cams.push(v ? [i, String(n).trim().slice(0, 80), r5(la), r5(lo), u, v] : [i, String(n).trim().slice(0, 80), r5(la), r5(lo), u])); console.log(`${name}: ${rows.length}`); }
     catch (e) { console.warn(`${name}: ERROR ${e.message}`); }
   }
-  const out = `// Generado ${new Date().toISOString()} por tools/build-cameras.js. [fuente, nombre, lat, lon, imagen]\nwindow.CAM_SOURCES=${JSON.stringify(src)};\nwindow.CAMS=${JSON.stringify(cams)};\n`;
+  const out = `// Generado ${new Date().toISOString()} por tools/build-cameras.js. [fuente, nombre, lat, lon, imagen, vídeo?]\nwindow.CAM_SOURCES=${JSON.stringify(src)};\nwindow.CAMS=${JSON.stringify(cams)};\n`;
   fs.writeFileSync(path.join(__dirname, '..', 'cameras.js'), out); console.log(`TOTAL ${cams.length} → cameras.js (${(out.length/1024)|0} KB)`);
 })();

@@ -18,7 +18,7 @@
   <aside id="left">
     <h3>ESTADO DE FUENTES</h3>
     <pre id="sources"></pre>
-    <h3>CÁMARAS CERCANAS · EN VIVO</h3>
+    <h3>CÁMARAS CERCANAS</h3>
     <div id="feeds"></div>
   </aside>
   <aside id="right">
@@ -31,7 +31,7 @@ Clic en un punto o use el buscador.</pre>
   <footer>
     <span id="coords">LAT --- LON ---</span>
     <span id="stats"></span>
-    <span><button id="layer">CAPA: HÍBRIDO</button> <button id="streetBtn">VISTA CALLE</button> <button id="camsBtn">CÁMARAS: SÍ</button> <button id="mil">SOLO MILITARES</button> <button id="release">LIBERAR</button></span>
+    <span><button id="layer">CAPA: HÍBRIDO</button> <button id="streetBtn">VISTA CALLE</button> <button id="camsBtn">CÁMARAS: TODAS</button> <button id="mil">SOLO MILITARES</button> <button id="release">LIBERAR</button></span>
   </footer>
 </div>
 <div id="camview" hidden>
@@ -40,6 +40,7 @@ Clic en un punto o use el buscador.</pre>
   <div class="cv-foot" id="cv-foot"></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
 <script src="cameras.js"></script>
 <script src="app.js"></script>
 </body>

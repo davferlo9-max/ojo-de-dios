@@ -57,15 +57,18 @@ const nearest = (la, lo) => CITIES.reduce((b, c) => { const d = hav(la, lo, c.la
 
 // ---------- Cámaras públicas (tráfico / meteorología oficiales)
 const SRC = (window.CAM_SOURCES || []).slice(), cams = [];
-(window.CAMS || []).forEach(([s, n, la, lo, u]) => cams.push({ s, n, la, lo, u }));
-const SG = SRC.push('Singapur · LTA') - 1, sgIndex = new Map();
-let camsOn = true, camFeedsT = 0, sgOk = false;
+(window.CAMS || []).forEach(([s, n, la, lo, u, v]) => cams.push({ s, n, la, lo, u, v }));
+const SG = SRC.push('Singapur · LTA') - 1, sgIndex = new Map(), nLive = cams.filter(c => c.v).length;
+let camMode = 0, camFeedsT = 0, sgOk = false; // 0 todas · 1 solo directo · 2 ninguna
 const camStyle = { renderer: rCams, radius: 3.5, color: '#062', weight: 1, fillColor: '#4dff88', fillOpacity: .9, bubblingMouseEvents: false };
+const liveStyle = { ...camStyle, radius: 4.5, color: '#400030', fillColor: '#ff3bd4' };
 const camLayer = L.layerGroup().addTo(map);
-const addCam = c => { c.m = L.circleMarker([c.la, c.lo], camStyle).bindTooltip(() => `CÁMARA · ${c.n}<br>${SRC[c.s]}`, { direction: 'top', offset: [0, -4] })
-  .on('click', () => openCam(c)).addTo(camLayer); };
+const camLayer2 = L.layerGroup().addTo(map);
+const addCam = c => { c.m = L.circleMarker([c.la, c.lo], c.v ? liveStyle : camStyle).bindTooltip(() => `${c.v ? 'VÍDEO EN DIRECTO' : 'CÁMARA (FOTO)'} · ${c.n}<br>${SRC[c.s]}`, { direction: 'top', offset: [0, -4] })
+  .on('click', () => openCam(c)).addTo(c.v ? camLayer2 : camLayer); };
 cams.forEach(addCam);
-$('camsBtn').onclick = () => { camsOn = !camsOn; camsOn ? camLayer.addTo(map) : map.removeLayer(camLayer); $('camsBtn').textContent = `CÁMARAS: ${camsOn ? 'SÍ' : 'NO'}`; };
+$('camsBtn').onclick = () => { camMode = (camMode + 1) % 3; camMode === 0 ? camLayer.addTo(map) : map.removeLayer(camLayer); camMode === 2 ? map.removeLayer(camLayer2) : camLayer2.addTo(map);
+  $('camsBtn').textContent = `CÁMARAS: ${['TODAS', 'SOLO DIRECTO', 'NO'][camMode]}`; updateFeeds(); };
 async function loadSG() {
   try { const j = await (await fetch('https://api.data.gov.sg/v1/transport/traffic-images')).json();
     for (const k of j.items[0].cameras) { let c = sgIndex.get(k.camera_id);
@@ -75,21 +78,34 @@ async function loadSG() {
   setTimeout(loadSG, 60000);
 }
 const camImg = c => c.fixed ? c.u : bust(c.u);
-const camVideo = c => /jamcams\.tfl\.gov\.uk\/.*\.jpg$/.test(c.u) ? c.u.replace(/\.jpg$/, '.mp4') : null;
+function attachVideo(v, url, onFail) {
+  Object.assign(v, { autoplay: true, muted: true, playsInline: true }); v.loop = !/\.m3u8/.test(url);
+  const fail = () => { if (v._dead) return; v._dead = 1; killVideo(v); onFail && onFail(); };
+  if (/\.m3u8/.test(url) && window.Hls && Hls.isSupported()) {
+    const h = new Hls({ enableWorker: false, liveSyncDurationCount: 2, maxBufferLength: 8, manifestLoadingMaxRetry: 2 });
+    h.on(Hls.Events.ERROR, (e, d) => { if (d.fatal) fail(); }); h.loadSource(url); h.attachMedia(v); v._hls = h;
+  } else v.src = url;
+  v.addEventListener('error', fail); v.play().catch(() => {});
+}
+function killVideo(v) { if (v._hls) { v._hls.destroy(); v._hls = null; } v.removeAttribute('src'); try { v.load(); } catch {} }
+const killVideos = root => root.querySelectorAll('video').forEach(killVideo);
 let cvTimer = null, cvCam = null;
 function openCam(c) {
   cvCam = c; clearInterval(cvTimer); $('camview').hidden = false; $('camview').classList.remove('street'); $('cv-title').innerHTML = '<i class="dot" style="color:#ff3b3b"></i>'; $('cv-title').append(c.n);
   $('cv-foot').textContent = `${SRC[c.s]} · ${c.la.toFixed(5)}, ${c.lo.toFixed(5)} · cerca de ${nearest(c.la, c.lo).c.n}`;
-  const body = $('cv-body'), vid = camVideo(c); body.innerHTML = '';
-  if (vid) { const v = Object.assign(document.createElement('video'), { src: vid, autoplay: true, muted: true, loop: true, playsInline: true, controls: true });
-    v.onerror = () => { body.innerHTML = ''; showImg(); }; body.append(v); }
-  else showImg();
-  function showImg() { const im = new Image(); im.alt = c.n; im.onerror = () => { body.textContent = '[SEÑAL NO DISPONIBLE] La cámara no responde ahora mismo.'; };
-    im.src = camImg(c); body.append(im); cvTimer = setInterval(() => { if (!document.hidden) im.src = camImg(c); }, 8000); }
+  const body = $('cv-body'), foot = $('cv-foot'), base = foot.textContent; killVideos(body); body.innerHTML = '';
+  const mode = t => { foot.innerHTML = ''; const s = document.createElement('span'); s.innerHTML = t; foot.append(s, document.createTextNode(base)); };
+  if (c.v) { const v = document.createElement('video'); v.controls = true; body.append(v);
+    mode('<b style="color:#ff3bd4"><i class="dot"></i>VÍDEO EN DIRECTO</b> · ');
+    attachVideo(v, c.v, () => { body.innerHTML = ''; mode('<b class="bad">VÍDEO NO DISPONIBLE · mostrando foto</b> · '); showImg(); }); }
+  else { mode('<b class="bad">FOTO</b> (esta red no emite vídeo; se renueva cuando la fuente la actualiza) · '); showImg(); }
+  function showImg() { const im = new Image(), nx = new Image(); im.alt = c.n; im.onerror = () => { body.textContent = '[SEÑAL NO DISPONIBLE] La cámara no responde ahora mismo.'; };
+    im.src = camImg(c); body.append(im);
+    nx.onload = () => { im.src = nx.src; }; cvTimer = setInterval(() => { if (!document.hidden) nx.src = camImg(c); }, 3000); }
   if (map.getZoom() < 14) map.flyTo([c.la, c.lo], 15, { duration: 1.5 });
   log(`Accediendo a cámara: ${c.n} (${SRC[c.s]})`);
 }
-$('cv-close').onclick = () => { $('camview').hidden = true; $('camview').classList.remove('street'); clearInterval(cvTimer); $('cv-body').innerHTML = ''; cvCam = null; };
+$('cv-close').onclick = () => { killVideos($('cv-body')); $('camview').hidden = true; $('camview').classList.remove('street'); clearInterval(cvTimer); $('cv-body').innerHTML = ''; cvCam = null; };
 $('cv-street').onclick = () => { if (cvCam) openStreet(cvCam.la, cvCam.lo, cvCam.n); };
 
 // ---------- Vista a pie de calle (Google Street View)
@@ -100,7 +116,7 @@ function openStreet(la, lo, title) {
   $('cv-title').textContent = `VISTA CALLE · ${title || `${la.toFixed(5)}, ${lo.toFixed(5)}`}`;
   const f = document.createElement('iframe'); f.allowFullscreen = true; f.referrerPolicy = 'no-referrer-when-downgrade';
   f.src = `https://www.google.com/maps?layer=c&cbll=${la},${lo}&cbp=12,0,0,0,0&output=svembed`;
-  $('cv-body').innerHTML = ''; $('cv-body').append(f);
+  killVideos($('cv-body')); $('cv-body').innerHTML = ''; $('cv-body').append(f);
   $('cv-foot').innerHTML = `<span>Arrastre para girar · rueda para acercar · flechas del suelo para avanzar. Si sale gris, no hay imágenes en ese punto: pruebe sobre una calle.</span><a target="_blank" rel="noopener" href="${svLink(la, lo)}">ABRIR EN GOOGLE MAPS</a>`;
   log(`Vista calle: ${la.toFixed(5)}, ${lo.toFixed(5)}`);
 }
@@ -110,19 +126,20 @@ map.on('click', e => { if (streetMode) openStreet(e.latlng.lat, wrap(e.latlng.ln
 map.on('contextmenu', e => openStreet(e.latlng.lat, wrap(e.latlng.lng)));
 function updateFeeds() {
   const ctr = map.getCenter(), la = ctr.lat, lo = wrap(ctr.lng), best = [];
-  for (const c of cams) { const d = (c.la - la)**2 + (wrap(c.lo - lo)*Math.cos(la*D2R))**2;
+  for (const c of cams) { if (camMode === 1 && !c.v) continue; const d = (c.la - la)**2 + (wrap(c.lo - lo)*Math.cos(la*D2R))**2;
     if (best.length < 4 || d < best[3].d) { best.push({ c, d }); best.sort((a, b) => a.d - b.d); if (best.length > 4) best.pop(); } }
-  const box = $('feeds'); box.innerHTML = '';
+  const box = $('feeds'); killVideos(box); box.innerHTML = '';
   if (!best.length) { box.textContent = 'Sin cámaras cargadas.'; return; }
   for (const { c, d } of best) { const el = document.createElement('div'); el.className = 'feed';
-    el.innerHTML = `<img alt=""><span class="rec"><i class="dot"></i>EN VIVO</span><span class="lbl"></span>`;
-    el.querySelector('img').src = camImg(c); el.querySelector('.lbl').textContent = `${c.n} · ${Math.round(Math.sqrt(d)*111)} km`;
-    el.querySelector('img').onerror = function () { this.style.opacity = .15; };
+    el.innerHTML = `<img alt=""><span class="rec">${c.v ? '<i class="dot"></i>EN DIRECTO' : 'FOTO'}</span><span class="lbl"></span>`;
+    const im = el.querySelector('img'); im.src = camImg(c); im.onerror = function () { this.style.opacity = .15; };
+    el.querySelector('.lbl').textContent = `${c.n} · ${Math.round(Math.sqrt(d)*111)} km`;
+    if (c.v) { const v = document.createElement('video'); v.className = 'thumb'; el.prepend(v); attachVideo(v, c.v, () => v.remove()); v.addEventListener('playing', () => { im.style.display = 'none'; }); }
     el.onclick = () => openCam(c); box.append(el); }
   camFeedsT = Date.now();
 }
 map.on('moveend', updateFeeds);
-setInterval(() => { if (!document.hidden && Date.now() - camFeedsT > 15000) updateFeeds(); }, 5000);
+setInterval(() => { if (!document.hidden && Date.now() - camFeedsT > 20000) $('feeds').querySelectorAll('.feed img').forEach((im, i) => { const v = im.parentNode.querySelector('video'); if (!v || im.style.display !== 'none') { const n = new Image(); n.onload = () => { im.src = n.src; }; n.src = bust(im.src.replace(/[?&]t=\d+$/, '')); } }); }, 10000);
 
 // ---------- Aeronaves
 const ac = new Map(), acLayer = L.layerGroup().addTo(map);
@@ -245,7 +262,7 @@ setInterval(() => {
   $('stats').textContent = `AERONAVES ${n.toLocaleString()} · MIL ${m} · CÁMARAS ${cams.length.toLocaleString()} · SISMOS ${quakes.size}`;
   $('clock').textContent = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
   const row = (k, ok, v) => `<i class="dot ${ok ? 'ok' : 'bad'}"></i>${k}: ${v}`;
-  $('sources').innerHTML = [row('MAPA', true, LAYERS[layerIdx].n), row('CÁMARAS', cams.length > 0, `${cams.length.toLocaleString()} públicas · ${SRC.length} redes${sgOk ? '' : ' (SG sin señal)'}`),
+  $('sources').innerHTML = [row('MAPA', true, LAYERS[layerIdx].n), row('CÁMARAS', cams.length > 0, `${cams.length.toLocaleString()} · ${SRC.length} redes`), row('VÍDEO DIRECTO', true, `${nLive.toLocaleString()} (puntos rosas)`),
     row('AERONAVES', flightSrc.ok, flightSrc.ok ? `EN VIVO · ${Math.round((Date.now() - flightSrc.t)/1000)}s` : 'SIMULADO'),
     row('ISS', iss.ok, iss.ok ? 'EN VIVO' : 'SIN SEÑAL'), row('SISMOS', quakesLoaded, quakesLoaded ? 'EN VIVO · USGS 24h' : 'SIN SEÑAL'), row('DÍA / NOCHE', true, 'TIEMPO REAL')].join('\n');
 }, 1000);
