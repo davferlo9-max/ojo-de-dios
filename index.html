@@ -4,25 +4,22 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>OJO DE DIOS</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.124.0/Build/Cesium/Widgets/widgets.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div id="gl"></div>
-<canvas id="overlay"></canvas>
+<div id="map"></div>
 <div id="hud">
   <header>
-    <div class="brand"><i class="eye"></i>OJO DE DIOS <small>v9.0 · OBSERVACIÓN GLOBAL EN TIEMPO REAL</small></div>
-    <form id="search"><input id="q" placeholder="BUSCAR CUALQUIER LUGAR DEL MUNDO, vuelo, matrícula, ISS, MIL" autocomplete="off"><button>RASTREAR</button></form>
+    <div class="brand"><i class="eye"></i>OJO DE DIOS <small>v10 · OBSERVACIÓN GLOBAL EN TIEMPO REAL</small></div>
+    <form id="search"><input id="q" placeholder="BUSCAR: cualquier dirección o lugar, vuelo, ISS, MIL, CAM nombre" autocomplete="off"><button>RASTREAR</button></form>
     <div id="clock"></div>
   </header>
   <aside id="left">
     <h3>ESTADO DE FUENTES</h3>
     <pre id="sources"></pre>
-    <h3>FEEDS (DEMO)</h3>
-    <canvas class="feed" width="220" height="110"></canvas>
-    <canvas class="feed" width="220" height="110"></canvas>
-    <canvas class="feed" width="220" height="110"></canvas>
+    <h3>CÁMARAS CERCANAS · EN VIVO</h3>
+    <div id="feeds"></div>
   </aside>
   <aside id="right">
     <h3>OBJETIVO</h3>
@@ -34,10 +31,16 @@ Clic en un punto o use el buscador.</pre>
   <footer>
     <span id="coords">LAT --- LON ---</span>
     <span id="stats"></span>
-    <span><button id="layer">CAPA: SATÉLITE</button> <button id="mil">SOLO MILITARES</button> <button id="release">LIBERAR</button></span>
+    <span><button id="layer">CAPA: HÍBRIDO</button> <button id="camsBtn">CÁMARAS: SÍ</button> <button id="mil">SOLO MILITARES</button> <button id="release">LIBERAR</button></span>
   </footer>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/cesium@1.124.0/Build/Cesium/Cesium.js"></script>
+<div id="camview" hidden>
+  <div class="cv-head"><span id="cv-title"></span><button id="cv-close">CERRAR ✕</button></div>
+  <div id="cv-body"></div>
+  <div class="cv-foot" id="cv-foot"></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="cameras.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
